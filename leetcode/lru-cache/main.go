@@ -1,52 +1,97 @@
 package main
 
+type Node struct {
+	Key        int
+	Value      int
+	next, prev *Node
+}
+
+type List struct {
+	size       int
+	head, tail *Node
+}
+
+func (l *List) Push(node *Node) {
+	l.size++
+	if l.head == nil {
+		l.head = node // First node
+	} else {
+		l.tail.next = node
+		node.prev = l.tail
+	}
+	l.tail = node
+}
+
+func (l *List) Pop() {
+	l.size--
+	l.head = l.head.next
+	if l.head != nil {
+		l.head.prev = nil
+	}
+}
+
+func (l *List) Delete(pointer *Node) {
+	l.size--
+	prev := pointer.prev
+	next := pointer.next
+	if pointer == l.head {
+		l.head = pointer.next
+	}
+	if pointer == l.tail {
+		l.tail = pointer.prev
+	}
+	if prev != nil {
+		prev.next = pointer.next
+	}
+	if next != nil {
+		next.prev = pointer.prev
+	}
+	pointer.prev = nil
+	pointer.next = nil
+}
+
 type LRUCache struct {
-	Capacity  int
-	Items     map[int]int
-	OrderKeys []int
+	Capacity int
+	Indexes  map[int]*Node
+	Items    *List
 }
 
 func Constructor(capacity int) LRUCache {
 	return LRUCache{
-		Capacity:  capacity,
-		OrderKeys: make([]int, 0, capacity),
-		Items:     make(map[int]int),
+		Capacity: capacity,
+		Items:    new(List),
+		Indexes:  make(map[int]*Node),
 	}
 }
 
 func (l *LRUCache) Get(key int) int {
-	value, found := l.Items[key]
+	pointer, found := l.Indexes[key]
 	if !found {
 		return -1
 	}
 
-	for i, k := range l.OrderKeys {
-		if k == key {
-			l.OrderKeys = append(l.OrderKeys[:i], l.OrderKeys[i+1:]...)
-			break
-		}
+	if pointer != l.Items.tail {
+		l.Items.Delete(pointer)
+		l.Items.Push(pointer)
 	}
-	l.OrderKeys = append(l.OrderKeys, key)
-	return value
+
+	return pointer.Value
 }
 
 func (l *LRUCache) Put(key int, value int) {
-	_, found := l.Items[key]
+	pointer, found := l.Indexes[key]
 	if found {
-		for i, k := range l.OrderKeys {
-			if k == key {
-				l.OrderKeys = append(l.OrderKeys[:i], l.OrderKeys[i+1:]...)
-				break
-			}
-		}
-		l.OrderKeys = append(l.OrderKeys, key)
+		l.Items.Delete(pointer)
+		pointer.Value = value
+		l.Items.Push(pointer)
 	} else {
-		if len(l.OrderKeys) == l.Capacity {
-			delete(l.Items, l.OrderKeys[0])
-			l.OrderKeys = l.OrderKeys[1:]
+		if l.Items.size == l.Capacity {
+			delete(l.Indexes, l.Items.head.Key)
+			l.Items.Pop()
 		}
 
-		l.OrderKeys = append(l.OrderKeys, key)
+		node := &Node{Key: key, Value: value}
+		l.Items.Push(node)
+		l.Indexes[key] = node
 	}
-	l.Items[key] = value
 }
